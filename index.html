@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Viral Videos Hub</title>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--tg-theme-bg-color, #0f0f12);
+      color: var(--tg-theme-text-color, #ffffff);
+      padding: 12px;
+      padding-bottom: 30px;
+    }
+
+    /* App Header */
+    header {
+      text-align: center;
+      padding: 12px 0 16px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 16px;
+    }
+
+    header h1 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #ff3b5c;
+    }
+
+    header p {
+      font-size: 0.8rem;
+      color: #8e8e93;
+      margin-top: 4px;
+    }
+
+    /* Vertical Feed Container */
+    .video-feed {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* Video Card */
+    .video-card {
+      background: var(--tg-theme-secondary-bg-color, #1c1c1e);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .thumbnail-wrapper {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%; /* 16:9 Aspect Ratio */
+      background: #000;
+      cursor: pointer;
+    }
+
+    .thumbnail-wrapper img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .play-overlay-icon {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 50px;
+      height: 50px;
+      background: rgba(0, 0, 0, 0.65);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid rgba(255, 255, 255, 0.8);
+      pointer-events: none;
+    }
+
+    .play-overlay-icon svg {
+      fill: #fff;
+      width: 22px;
+      height: 22px;
+      margin-left: 3px;
+    }
+
+    .video-details {
+      padding: 12px;
+    }
+
+    .video-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      line-height: 1.3;
+      margin-bottom: 10px;
+    }
+
+    /* Play Button Below Card */
+    .play-action-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #ff3b5c, #ff1744);
+      color: #fff;
+      border: none;
+      padding: 10px 0;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: opacity 0.2s;
+    }
+
+    .play-action-btn:active {
+      opacity: 0.8;
+    }
+
+    /* Fullscreen Modal Player */
+    .modal-player-container {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #000000;
+      z-index: 9999;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-player-container.active {
+      display: flex;
+    }
+
+    .modal-close-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: #fff;
+      font-size: 20px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    video {
+      width: 100%;
+      max-height: 85vh;
+      outline: none;
+    }
+
+    /* Loading / Ad Indicator */
+    .ad-status-banner {
+      position: absolute;
+      bottom: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      color: #ffeb3b;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🔥 Trending Videos</h1>
+    <p>Watch latest viral videos instantly</p>
+  </header>
+
+  <main class="video-feed" id="videoFeedContainer">
+    </main>
+
+  <div class="modal-player-container" id="playerModal">
+    <button class="modal-close-btn" id="closePlayerBtn">&times;</button>
+    <video id="mainVideoPlayer" controls playsinline webkit-playsinline></video>
+    <div class="ad-status-banner" id="adStatusBanner">Ad is loading...</div>
+  </div>
+
+  <script>
+    // 1. Initialize Telegram WebApp
+    const tg = window.Telegram ? window.Telegram.WebApp : null;
+    if (tg) {
+      tg.ready();
+      tg.expand(); // Full screen me open karne ke liye
+    }
+
+    // 2. VIDEO DATA LIST (Yaha apne Firebase Storage URLs daalein)
+    const videoList = [
+      {
+        id: 1,
+        title: "Viral Stunt Video #1 🔥",
+        thumbnailUrl: "https://images.unsplash.com/photo-1518173946687-a4c8a383392e?w=500&auto=format&fit=crop&q=60",
+        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+      },
+      {
+        id: 2,
+        title: "Super Funny Clip #2 😂",
+        thumbnailUrl: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=500&auto=format&fit=crop&q=60",
+        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"
+      },
+      {
+        id: 3,
+        title: "Crazy Car Drift Moments #3 🚗",
+        thumbnailUrl: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=500&auto=format&fit=crop&q=60",
+        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"
+      }
+    ];
+
+    const feedContainer = document.getElementById("videoFeedContainer");
+    const playerModal = document.getElementById("playerModal");
+    const mainVideoPlayer = document.getElementById("mainVideoPlayer");
+    const closePlayerBtn = document.getElementById("closePlayerBtn");
+    const adStatusBanner = document.getElementById("adStatusBanner");
+
+    // 3. Render Videos in Vertical Feed
+    function renderVideos() {
+      feedContainer.innerHTML = "";
+      videoList.forEach((video) => {
+        const card = document.createElement("div");
+        card.className = "video-card";
+        card.innerHTML = `
+          <div class="thumbnail-wrapper" onclick="handlePlayClick('${video.videoUrl}')">
+            <img src="${video.thumbnailUrl}" alt="${video.title}" loading="lazy" />
+            <div class="play-overlay-icon">
+              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            </div>
+          </div>
+          <div class="video-details">
+            <h2 class="video-title">${video.title}</h2>
+            <button class="play-action-btn" onclick="handlePlayClick('${video.videoUrl}')">
+              <span>▶ Play Video</span>
+            </button>
+          </div>
+        `;
+        feedContainer.appendChild(card);
+      });
+    }
+
+    // 4. Handle Ad + Video Play Logic
+    function handlePlayClick(videoUrl) {
+      adStatusBanner.style.display = "block";
+      adStatusBanner.innerText = "Showing Sponsor Ad...";
+
+      // Monetag Rewarded Interstitial trigger logic
+      // Note: Monetag SDK load hone par show_xxxx() jaisa function banta hai.
+      if (typeof show_opt === "function") {
+        show_opt()
+          .then(() => {
+            // Ad pura dekhne ke baad video chalu hoga
+            startOriginalVideo(videoUrl);
+          })
+          .catch((e) => {
+            console.warn("Ad skip ya fail ho gya:", e);
+            // Agar ad load na ho to bhi video chal jaye
+            startOriginalVideo(videoUrl);
+          });
+      } else {
+        // Test fallback (agar Monetag script nahi lga ho ya ad na aaye)
+        console.log("Ad SDK not loaded. Playing video directly...");
+        startOriginalVideo(videoUrl);
+      }
+    }
+
+    function startOriginalVideo(videoUrl) {
+      adStatusBanner.style.display = "none";
+      playerModal.classList.add("active");
+      mainVideoPlayer.src = videoUrl;
+      mainVideoPlayer.play();
+    }
+
+    // Close Player Handler
+    closePlayerBtn.addEventListener("click", () => {
+      mainVideoPlayer.pause();
+      mainVideoPlayer.src = "";
+      playerModal.classList.remove("active");
+    });
+
+    // Initialize list
+    renderVideos();
+  </script>
+</body>
+</html>
