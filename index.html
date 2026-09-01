@@ -5,7 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Viral Videos Hub</title>
 
+  <!-- Telegram Web App SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- Monetag TMA SDK -->
+  <script src="//libtl.com/sdk.js" data-zone="11702025" data-sdk="show_11702025"></script>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
   <style>
     * {
@@ -23,7 +31,6 @@
       padding-bottom: 30px;
     }
 
-    /* App Header */
     header {
       text-align: center;
       padding: 12px 0 16px 0;
@@ -43,7 +50,6 @@
       margin-top: 4px;
     }
 
-    /* Vertical Feed Container */
     .video-feed {
       display: flex;
       flex-direction: column;
@@ -52,7 +58,6 @@
       margin: 0 auto;
     }
 
-    /* Video Card */
     .video-card {
       background: var(--tg-theme-secondary-bg-color, #1c1c1e);
       border-radius: 14px;
@@ -66,7 +71,7 @@
     .thumbnail-wrapper {
       position: relative;
       width: 100%;
-      padding-top: 56.25%; /* 16:9 Aspect Ratio */
+      padding-top: 56.25%;
       background: #000;
       cursor: pointer;
     }
@@ -114,7 +119,6 @@
       margin-bottom: 10px;
     }
 
-    /* Play Button Below Card */
     .play-action-btn {
       width: 100%;
       background: linear-gradient(135deg, #ff3b5c, #ff1744);
@@ -129,14 +133,19 @@
       align-items: center;
       justify-content: center;
       gap: 6px;
-      transition: opacity 0.2s;
     }
 
     .play-action-btn:active {
       opacity: 0.8;
     }
 
-    /* Fullscreen Modal Player */
+    .loading-state {
+      text-align: center;
+      padding: 40px 0;
+      color: #8e8e93;
+      font-size: 0.95rem;
+    }
+
     .modal-player-container {
       display: none;
       position: fixed;
@@ -178,18 +187,6 @@
       max-height: 85vh;
       outline: none;
     }
-
-    /* Loading / Ad Indicator */
-    .ad-status-banner {
-      position: absolute;
-      bottom: 20px;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 0.8rem;
-      color: #ffeb3b;
-      display: none;
-    }
   </style>
 </head>
 <body>
@@ -200,12 +197,12 @@
   </header>
 
   <main class="video-feed" id="videoFeedContainer">
-    </main>
+    <div class="loading-state" id="loadingText">Loading videos...</div>
+  </main>
 
   <div class="modal-player-container" id="playerModal">
     <button class="modal-close-btn" id="closePlayerBtn">&times;</button>
     <video id="mainVideoPlayer" controls playsinline webkit-playsinline></video>
-    <div class="ad-status-banner" id="adStatusBanner">Ad is loading...</div>
   </div>
 
   <script>
@@ -213,102 +210,92 @@
     const tg = window.Telegram ? window.Telegram.WebApp : null;
     if (tg) {
       tg.ready();
-      tg.expand(); // Full screen me open karne ke liye
+      tg.expand();
     }
 
-    // 2. VIDEO DATA LIST (Yaha apne Firebase Storage URLs daalein)
-    const videoList = [
-      {
-        id: 1,
-        title: "Viral Stunt Video #1 🔥",
-        thumbnailUrl: "https://images.unsplash.com/photo-1518173946687-a4c8a383392e?w=500&auto=format&fit=crop&q=60",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
-      },
-      {
-        id: 2,
-        title: "Super Funny Clip #2 😂",
-        thumbnailUrl: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=500&auto=format&fit=crop&q=60",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"
-      },
-      {
-        id: 3,
-        title: "Crazy Car Drift Moments #3 🚗",
-        thumbnailUrl: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=500&auto=format&fit=crop&q=60",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"
-      }
-    ];
+    // 2. Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyDH9zOT7xjOaF06bqSDmujVk6nxfnPqEIo",
+      authDomain: "viral-mini.firebaseapp.com",
+      databaseURL: "https://viral-mini-default-rtdb.firebaseio.com",
+      projectId: "viral-mini",
+      storageBucket: "viral-mini.firebasestorage.app",
+      messagingSenderId: "437916700194",
+      appId: "1:437916700194:web:62d70e5cf0a859898c847b",
+      measurementId: "G-7YWZFNXVCK"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
     const feedContainer = document.getElementById("videoFeedContainer");
     const playerModal = document.getElementById("playerModal");
     const mainVideoPlayer = document.getElementById("mainVideoPlayer");
     const closePlayerBtn = document.getElementById("closePlayerBtn");
-    const adStatusBanner = document.getElementById("adStatusBanner");
 
-    // 3. Render Videos in Vertical Feed
-    function renderVideos() {
+    // 3. Live Video Feed from Firebase
+    db.ref("videos").on("value", (snapshot) => {
+      const data = snapshot.val();
       feedContainer.innerHTML = "";
-      videoList.forEach((video) => {
+
+      if (!data) {
+        feedContainer.innerHTML = `<div class="loading-state">Abhi koi video uplode nahi hai.<br>Firebase Console se video add karein.</div>`;
+        return;
+      }
+
+      const videoEntries = Object.entries(data).reverse();
+
+      videoEntries.forEach(([key, video]) => {
         const card = document.createElement("div");
         card.className = "video-card";
         card.innerHTML = `
-          <div class="thumbnail-wrapper" onclick="handlePlayClick('${video.videoUrl}')">
-            <img src="${video.thumbnailUrl}" alt="${video.title}" loading="lazy" />
+          <div class="thumbnail-wrapper" onclick="triggerAdAndPlay('${video.videoUrl}')">
+            <img src="${video.thumbnailUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500'}" alt="${video.title}" loading="lazy" />
             <div class="play-overlay-icon">
               <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             </div>
           </div>
           <div class="video-details">
             <h2 class="video-title">${video.title}</h2>
-            <button class="play-action-btn" onclick="handlePlayClick('${video.videoUrl}')">
+            <button class="play-action-btn" onclick="triggerAdAndPlay('${video.videoUrl}')">
               <span>▶ Play Video</span>
             </button>
           </div>
         `;
         feedContainer.appendChild(card);
       });
-    }
+    });
 
-    // 4. Handle Ad + Video Play Logic
-    function handlePlayClick(videoUrl) {
-      adStatusBanner.style.display = "block";
-      adStatusBanner.innerText = "Showing Sponsor Ad...";
-
-      // Monetag Rewarded Interstitial trigger logic
-      // Note: Monetag SDK load hone par show_xxxx() jaisa function banta hai.
-      if (typeof show_opt === "function") {
-        show_opt()
+    // 4. Monetag Rewarded Interstitial Ad Logic
+    function triggerAdAndPlay(videoUrl) {
+      if (typeof show_11702025 === "function") {
+        show_11702025()
           .then(() => {
-            // Ad pura dekhne ke baad video chalu hoga
-            startOriginalVideo(videoUrl);
+            // Ad pura hone par video play hoga
+            playMainVideo(videoUrl);
           })
-          .catch((e) => {
-            console.warn("Ad skip ya fail ho gya:", e);
-            // Agar ad load na ho to bhi video chal jaye
-            startOriginalVideo(videoUrl);
+          .catch((err) => {
+            console.warn("Ad skip ya error aaya:", err);
+            // Agar ad load na ho to bhi user ko video play ho jaye
+            playMainVideo(videoUrl);
           });
       } else {
-        // Test fallback (agar Monetag script nahi lga ho ya ad na aaye)
-        console.log("Ad SDK not loaded. Playing video directly...");
-        startOriginalVideo(videoUrl);
+        // Fallback: Agar kisi reason se ad script block/load na ho
+        playMainVideo(videoUrl);
       }
     }
 
-    function startOriginalVideo(videoUrl) {
-      adStatusBanner.style.display = "none";
+    function playMainVideo(videoUrl) {
       playerModal.classList.add("active");
       mainVideoPlayer.src = videoUrl;
       mainVideoPlayer.play();
     }
 
-    // Close Player Handler
     closePlayerBtn.addEventListener("click", () => {
       mainVideoPlayer.pause();
       mainVideoPlayer.src = "";
       playerModal.classList.remove("active");
     });
-
-    // Initialize list
-    renderVideos();
   </script>
 </body>
 </html>
