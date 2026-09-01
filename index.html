@@ -233,6 +233,10 @@
     const mainVideoPlayer = document.getElementById("mainVideoPlayer");
     const closePlayerBtn = document.getElementById("closePlayerBtn");
 
+    // Ad Triggers Tracking Flags
+    let midRollTriggered8Sec = false;  // 8-10 sec double ad track
+    let midRollTriggered55Sec = false; // 55-60 sec ad track
+
     // 3. Live Video Feed from Firebase
     db.ref("videos").on("value", (snapshot) => {
       const data = snapshot.val();
@@ -249,7 +253,7 @@
         const card = document.createElement("div");
         card.className = "video-card";
         card.innerHTML = `
-          <div class="thumbnail-wrapper" onclick="triggerAdAndPlay('${video.videoUrl}')">
+          <div class="thumbnail-wrapper" onclick="startVideoWithPreRoll('${video.videoUrl}')">
             <img src="${video.thumbnailUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500'}" alt="${video.title}" loading="lazy" />
             <div class="play-overlay-icon">
               <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -257,7 +261,7 @@
           </div>
           <div class="video-details">
             <h2 class="video-title">${video.title}</h2>
-            <button class="play-action-btn" onclick="triggerAdAndPlay('${video.videoUrl}')">
+            <button class="play-action-btn" onclick="startVideoWithPreRoll('${video.videoUrl}')">
               <span>▶ Play Video</span>
             </button>
           </div>
@@ -266,23 +270,14 @@
       });
     });
 
-    // 4. Monetag Rewarded Interstitial Ad Logic
-    function triggerAdAndPlay(videoUrl) {
-      if (typeof show_11702025 === "function") {
-        show_11702025()
-          .then(() => {
-            // Ad pura hone par video play hoga
-            playMainVideo(videoUrl);
-          })
-          .catch((err) => {
-            console.warn("Ad skip ya error aaya:", err);
-            // Agar ad load na ho to bhi user ko video play ho jaye
-            playMainVideo(videoUrl);
-          });
-      } else {
-        // Fallback: Agar kisi reason se ad script block/load na ho
+    // 4. Pre-roll Ad (Video start hone se pehle)
+    function startVideoWithPreRoll(videoUrl) {
+      midRollTriggered8Sec = false;
+      midRollTriggered55Sec = false;
+      
+      runMonetagAd(() => {
         playMainVideo(videoUrl);
-      }
+      });
     }
 
     function playMainVideo(videoUrl) {
@@ -291,9 +286,58 @@
       mainVideoPlayer.play();
     }
 
+    // 5. Video Player Timeline Listener (8-10s Double Ad & 55-60s Ad)
+    mainVideoPlayer.addEventListener("timeupdate", () => {
+      const currentTime = mainVideoPlayer.currentTime;
+
+      // --- Interval 1: 8 से 10 सेकंड पर 2 लगातार Ads ---
+      if (currentTime >= 9 && !midRollTriggered8Sec) {
+        midRollTriggered8Sec = true;
+        mainVideoPlayer.pause();
+
+        // Pehla Mid-Roll Ad
+        runMonetagAd(() => {
+          // Uske turant baad Doosra Ad (Back-to-Back)
+          runMonetagAd(() => {
+            mainVideoPlayer.play(); // Dono ad khatam hone par video wahi se resume
+          });
+        });
+      }
+
+      // --- Interval 2: 55 से 60 सेकंड पर अगला Ad ---
+      if (currentTime >= 55 && !midRollTriggered55Sec) {
+        midRollTriggered55Sec = true;
+        mainVideoPlayer.pause();
+
+        // Late Mid-Roll Ad
+        runMonetagAd(() => {
+          mainVideoPlayer.play(); // Ad khatam hone par video resume
+        });
+      }
+    });
+
+    // 6. Generic Ad Helper Function
+    function runMonetagAd(onComplete) {
+      if (typeof show_11702025 === "function") {
+        show_11702025()
+          .then(() => {
+            if (onComplete) onComplete();
+          })
+          .catch((err) => {
+            console.warn("Ad skip/error:", err);
+            if (onComplete) onComplete();
+          });
+      } else {
+        if (onComplete) onComplete();
+      }
+    }
+
+    // Close Player Modal
     closePlayerBtn.addEventListener("click", () => {
       mainVideoPlayer.pause();
       mainVideoPlayer.src = "";
+      midRollTriggered8Sec = false;
+      midRollTriggered55Sec = false;
       playerModal.classList.remove("active");
     });
   </script>
