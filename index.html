@@ -1,345 +1,391 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Viral Videos Hub</title>
-
-  <!-- Telegram Web App SDK -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cosmic Rewards</title>
+  
+  <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
-  <!-- Monetag TMA SDK -->
-  <script src="//libtl.com/sdk.js" data-zone="11702025" data-sdk="show_11702025"></script>
+  
+  <!-- Monetag Telegram Mini App SDK -->
+  <script src="//libtl.com/sdk.js" data-zone="11723018" data-sdk="show_11723018"></script>
 
   <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      -webkit-tap-highlight-color: transparent;
+    :root {
+      --bg-color: #080706;
+      --card-bg: #14110f;
+      --card-border: #291f19;
+      --accent-orange: #ff6a00;
+      --accent-glow: #ff8c38;
+      --text-main: #f8fafc;
+      --text-muted: #9c9087;
     }
 
-    body {
-      background-color: var(--tg-theme-bg-color, #0f0f12);
-      color: var(--tg-theme-text-color, #ffffff);
-      padding: 12px;
-      padding-bottom: 30px;
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { 
+      background: radial-gradient(circle at top right, #241206 0%, var(--bg-color) 60%);
+      color: var(--text-main); 
+      padding: 16px; 
+      min-height: 100vh;
+      user-select: none; 
     }
+    
+    /* Top Bar */
+    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+    .profile-card { 
+      background: var(--card-bg); 
+      padding: 8px 16px; 
+      border-radius: 20px; 
+      font-size: 14px; 
+      font-weight: 600; 
+      border: 1px solid var(--card-border);
+      box-shadow: inset 0 0 8px rgba(255, 106, 0, 0.05);
+    }
+    
+    .diamond-badge { 
+      background: linear-gradient(135deg, #ff6a00, #d9480f); 
+      border: none; 
+      padding: 8px 18px; 
+      border-radius: 20px; 
+      font-size: 15px; 
+      font-weight: bold; 
+      color: #fff; 
+      cursor: pointer; 
+      box-shadow: 0 4px 14px rgba(255, 106, 0, 0.35);
+      transition: transform 0.15s;
+    }
+    .diamond-badge:active { transform: scale(0.95); }
+    
+    /* Task Cards */
+    .task-container { display: flex; flex-direction: column; gap: 14px; }
+    .ad-card { 
+      background: var(--card-bg); 
+      padding: 16px; 
+      border-radius: 14px; 
+      border: 1px solid var(--card-border); 
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .card-title { font-weight: 600; font-size: 15px; letter-spacing: 0.5px; }
+    .ad-badge { 
+      font-size: 12px; 
+      color: var(--accent-glow); 
+      background: rgba(255, 106, 0, 0.1); 
+      padding: 4px 10px; 
+      border-radius: 8px; 
+      font-weight: bold; 
+      border: 1px solid rgba(255, 106, 0, 0.2); 
+    }
+    
+    .action-btn { 
+      width: 100%; 
+      background: linear-gradient(135deg, #ff7a18, #af3c00); 
+      color: #fff; 
+      border: none; 
+      padding: 12px; 
+      border-radius: 10px; 
+      font-weight: bold; 
+      font-size: 14px; 
+      cursor: pointer; 
+      box-shadow: 0 3px 10px rgba(255, 106, 0, 0.25);
+      transition: 0.2s; 
+    }
+    .action-btn:active { transform: scale(0.98); }
+    .action-btn:disabled { 
+      background: #1e1916; 
+      color: #594d45; 
+      cursor: not-allowed; 
+      box-shadow: none; 
+      transform: none; 
+    }
+    
+    .progress-track { background: #0b0908; height: 8px; border-radius: 6px; margin-top: 12px; overflow: hidden; border: 1px solid #1f1814; }
+    .progress-bar { background: linear-gradient(90deg, #ff6a00, #ff9248); height: 100%; width: 0%; transition: width 0.3s ease; }
 
-    header {
+    /* Daily Reset Notice */
+    .reset-timer-badge {
       text-align: center;
-      padding: 12px 0 16px 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      margin-bottom: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 14px;
     }
 
-    header h1 {
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: #ff3b5c;
+    /* Wallet Popup */
+    .modal-overlay { 
+      display: none; 
+      position: fixed; 
+      inset: 0; 
+      background: rgba(0, 0, 0, 0.88); 
+      backdrop-filter: blur(4px);
+      align-items: center; 
+      justify-content: center; 
+      padding: 16px; 
+      z-index: 100; 
     }
-
-    header p {
-      font-size: 0.8rem;
-      color: #8e8e93;
-      margin-top: 4px;
+    .modal-card { 
+      background: var(--card-bg); 
+      width: 100%; 
+      max-width: 380px; 
+      padding: 22px; 
+      border-radius: 16px; 
+      border: 1px solid var(--card-border); 
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8);
     }
-
-    .video-feed {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      max-width: 480px;
-      margin: 0 auto;
+    .option-item { 
+      background: #0d0a09; 
+      padding: 14px; 
+      border-radius: 10px; 
+      margin: 10px 0; 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      cursor: pointer; 
+      border: 1px solid var(--card-border); 
+      transition: 0.2s; 
     }
-
-    .video-card {
-      background: var(--tg-theme-secondary-bg-color, #1c1c1e);
-      border-radius: 14px;
-      overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-      display: flex;
-      flex-direction: column;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .thumbnail-wrapper {
-      position: relative;
-      width: 100%;
-      padding-top: 56.25%;
-      background: #000;
-      cursor: pointer;
-    }
-
-    .thumbnail-wrapper img {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .play-overlay-icon {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 50px;
-      height: 50px;
-      background: rgba(0, 0, 0, 0.65);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 2px solid rgba(255, 255, 255, 0.8);
-      pointer-events: none;
-    }
-
-    .play-overlay-icon svg {
-      fill: #fff;
-      width: 22px;
-      height: 22px;
-      margin-left: 3px;
-    }
-
-    .video-details {
-      padding: 12px;
-    }
-
-    .video-title {
-      font-size: 0.95rem;
-      font-weight: 600;
-      line-height: 1.3;
-      margin-bottom: 10px;
-    }
-
-    .play-action-btn {
-      width: 100%;
-      background: linear-gradient(135deg, #ff3b5c, #ff1744);
-      color: #fff;
-      border: none;
-      padding: 10px 0;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 0.9rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-    }
-
-    .play-action-btn:active {
-      opacity: 0.8;
-    }
-
-    .loading-state {
-      text-align: center;
-      padding: 40px 0;
-      color: #8e8e93;
-      font-size: 0.95rem;
-    }
-
-    .modal-player-container {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: #000000;
-      z-index: 9999;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .modal-player-container.active {
-      display: flex;
-    }
-
-    .modal-close-btn {
-      position: absolute;
-      top: 16px;
-      right: 16px;
-      background: rgba(255, 255, 255, 0.2);
-      border: none;
-      color: #fff;
-      font-size: 20px;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      cursor: pointer;
-      z-index: 10000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    video {
-      width: 100%;
-      max-height: 85vh;
-      outline: none;
+    .option-item:hover, .option-item:active { border-color: var(--accent-orange); }
+    
+    .status-panel { 
+      margin-top: 16px; 
+      padding: 14px; 
+      background: #0a0807; 
+      border-radius: 10px; 
+      font-size: 13px; 
+      text-align: center; 
+      border: 1px dashed var(--card-border); 
     }
   </style>
 </head>
 <body>
 
-  <header>
-    <h1>🔥 Trending Videos</h1>
-    <p>Watch latest viral videos instantly</p>
-  </header>
-
-  <main class="video-feed" id="videoFeedContainer">
-    <div class="loading-state" id="loadingText">Loading videos...</div>
-  </main>
-
-  <div class="modal-player-container" id="playerModal">
-    <button class="modal-close-btn" id="closePlayerBtn">&times;</button>
-    <video id="mainVideoPlayer" controls playsinline webkit-playsinline></video>
+  <div class="top-bar">
+    <div class="profile-card" id="user-display">👤 Player</div>
+    <button class="diamond-badge" onclick="showWallet()">💎 <span id="diamond-counter">0</span></button>
   </div>
 
-  <script>
-    // 1. Initialize Telegram WebApp
-    const tg = window.Telegram ? window.Telegram.WebApp : null;
-    if (tg) {
-      tg.ready();
-      tg.expand();
-    }
+  <div class="reset-timer-badge">⚡ Tasks daily midnight ko auto-reset ho jate hain</div>
 
-    // 2. Firebase Configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyDH9zOT7xjOaF06bqSDmujVk6nxfnPqEIo",
-      authDomain: "viral-mini.firebaseapp.com",
-      databaseURL: "https://viral-mini-default-rtdb.firebaseio.com",
-      projectId: "viral-mini",
-      storageBucket: "viral-mini.firebasestorage.app",
-      messagingSenderId: "437916700194",
-      appId: "1:437916700194:web:62d70e5cf0a859898c847b",
-      measurementId: "G-7YWZFNXVCK"
-    };
+  <div class="task-container" id="tasks-wrapper"></div>
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    const feedContainer = document.getElementById("videoFeedContainer");
-    const playerModal = document.getElementById("playerModal");
-    const mainVideoPlayer = document.getElementById("mainVideoPlayer");
-    const closePlayerBtn = document.getElementById("closePlayerBtn");
-
-    // Ad Triggers Tracking Flags
-    let midRollTriggered8Sec = false;  // 8-10 sec double ad track
-    let midRollTriggered55Sec = false; // 55-60 sec ad track
-
-    // 3. Live Video Feed from Firebase
-    db.ref("videos").on("value", (snapshot) => {
-      const data = snapshot.val();
-      feedContainer.innerHTML = "";
-
-      if (!data) {
-        feedContainer.innerHTML = `<div class="loading-state">Abhi koi video uplode nahi hai.<br>Firebase Console se video add karein.</div>`;
-        return;
-      }
-
-      const videoEntries = Object.entries(data).reverse();
-
-      videoEntries.forEach(([key, video]) => {
-        const card = document.createElement("div");
-        card.className = "video-card";
-        card.innerHTML = `
-          <div class="thumbnail-wrapper" onclick="startVideoWithPreRoll('${video.videoUrl}')">
-            <img src="${video.thumbnailUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500'}" alt="${video.title}" loading="lazy" />
-            <div class="play-overlay-icon">
-              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-            </div>
-          </div>
-          <div class="video-details">
-            <h2 class="video-title">${video.title}</h2>
-            <button class="play-action-btn" onclick="startVideoWithPreRoll('${video.videoUrl}')">
-              <span>▶ Play Video</span>
-            </button>
-          </div>
-        `;
-        feedContainer.appendChild(card);
-      });
-    });
-
-    // 4. Pre-roll Ad (Video start hone se pehle)
-    function startVideoWithPreRoll(videoUrl) {
-      midRollTriggered8Sec = false;
-      midRollTriggered55Sec = false;
+  <!-- Wallet Modal -->
+  <div class="modal-overlay" id="wallet-popup">
+    <div class="modal-card">
+      <h3 style="font-size: 18px; color: var(--accent-glow);">Redeem Code Store</h3>
+      <p style="font-size: 12px; color: var(--text-muted); margin: 6px 0 14px 0;">Apne diamonds exchange karein:</p>
       
-      runMonetagAd(() => {
-        playMainVideo(videoUrl);
+      <div class="option-item" onclick="submitRedeemRequest(1200, 10)">
+        <b>₹10 Code</b><span style="color:var(--accent-glow); font-weight:bold;">1,200 💎</span>
+      </div>
+      <div class="option-item" onclick="submitRedeemRequest(2300, 20)">
+        <b>₹20 Code</b><span style="color:var(--accent-glow); font-weight:bold;">2,300 💎</span>
+      </div>
+      <div class="option-item" onclick="submitRedeemRequest(3000, 30)">
+        <b>₹30 Code</b><span style="color:var(--accent-glow); font-weight:bold;">3,000 💎</span>
+      </div>
+
+      <div class="status-panel" id="request-display">Koi pending request nahi hai</div>
+      <button class="action-btn" style="margin-top: 14px;" onclick="hideWallet()">Close</button>
+    </div>
+  </div>
+
+<script>
+  // Firebase Configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyDvC04b5_jmvpyxS-Yk2in0Uee3I8G5jd4",
+    databaseURL: "https://amaibot-6736d-default-rtdb.firebaseio.com",
+    projectId: "amaibot-6736d"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // Telegram User Init
+  const tg = window.Telegram?.WebApp;
+  if (tg) {
+    tg.ready();
+    tg.expand();
+  }
+
+  const tgUser = tg?.initDataUnsafe?.user;
+  const currentUserId = tgUser?.id ? String(tgUser.id) : "demo_user_test";
+  const currentUserName = tgUser?.first_name || "Demo Player";
+  document.getElementById("user-display").innerText = "👤 " + currentUserName;
+
+  let totalDiamonds = 0;
+  let buttonStates = [0, 0, 0, 0, 0];
+  let lastActiveDay = "";
+
+  // Helper: Get Today's Date String YYYY-MM-DD
+  function getTodayString() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }
+
+  buildButtons();
+
+  // 1. IN-APP INTERSTITIAL INITIALIZATION (Runs in background)
+  window.addEventListener("load", () => {
+    if (typeof show_11723018 === "function") {
+      try {
+        show_11723018({
+          type: 'inApp',
+          inAppSettings: {
+            frequency: 2,
+            capping: 0.1,
+            interval: 30,
+            timeout: 5,
+            everyPage: false
+          }
+        });
+      } catch (err) {
+        console.log("In-app Ad init:", err);
+      }
+    }
+  });
+
+  // 2. Database Sync & Daily Auto-Reset Check
+  const userDatabaseRef = db.ref("users/" + currentUserId);
+  userDatabaseRef.on("value", (snapshot) => {
+    const data = snapshot.val();
+    const today = getTodayString();
+
+    if (data) {
+      // Diamonds hamesha bachenge (kabhi reset nahi honge)
+      totalDiamonds = data.diamonds || 0;
+      document.getElementById("diamond-counter").innerText = totalDiamonds;
+
+      // Agar din change ho gaya hai, to tasks ko 0 par reset kar do
+      if (data.lastDate !== today) {
+        buttonStates = [0, 0, 0, 0, 0];
+        lastActiveDay = today;
+        userDatabaseRef.update({
+          tasks: buttonStates,
+          lastDate: today
+        });
+      } else {
+        buttonStates = data.tasks || [0, 0, 0, 0, 0];
+        lastActiveDay = data.lastDate;
+      }
+      buildButtons();
+    } else {
+      // Pehli baar user login hua hai
+      userDatabaseRef.set({
+        name: currentUserName,
+        diamonds: 0,
+        tasks: [0, 0, 0, 0, 0],
+        lastDate: today
       });
     }
+  });
 
-    function playMainVideo(videoUrl) {
-      playerModal.classList.add("active");
-      mainVideoPlayer.src = videoUrl;
-      mainVideoPlayer.play();
+  // Withdraw Status Listener
+  const requestDatabaseRef = db.ref("withdrawals/" + currentUserId);
+  requestDatabaseRef.on("value", (snapshot) => {
+    const data = snapshot.val();
+    const statusBox = document.getElementById("request-display");
+    if (!data) {
+      statusBox.innerText = "Koi pending request nahi hai";
+    } else if (data.status === "pending") {
+      statusBox.innerHTML = `⏳ <b>₹${data.amount} Request Pending:</b><br><span style="color:var(--text-muted); font-size:12px;">Aapko 24 hours ke andar kabhi bhi code mil jayega.</span>`;
+    } else if (data.status === "approved") {
+      statusBox.innerHTML = `🎉 <b>Aapka Code Ready Hai:</b><br><code style="color:var(--accent-glow); font-size:16px; font-weight:bold; letter-spacing:1px;">${data.code}</code>`;
+    }
+  });
+
+  function buildButtons() {
+    const wrapper = document.getElementById("tasks-wrapper");
+    wrapper.innerHTML = "";
+
+    for (let i = 0; i < 5; i++) {
+      const watched = buttonStates[i] || 0;
+      const left = 5 - watched;
+      const completed = left <= 0;
+      const progressPercent = (watched / 5) * 100;
+
+      wrapper.innerHTML += `
+        <div class="ad-card">
+          <div class="card-header">
+            <span class="card-title">Mission #${i + 1}</span>
+            <span class="ad-badge">${completed ? "Finished" : left + " ads left"}</span>
+          </div>
+          <button class="action-btn" id="task-btn-${i}" ${completed ? "disabled" : ""} onclick="handleWatchAd(${i})">
+            ${completed ? "Mission Finished" : "Watch Ad (+10 💎)"}
+          </button>
+          <div class="progress-track">
+            <div class="progress-bar" style="width: ${progressPercent}%;"></div>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  // Rewarded Interstitial Trigger (Button Click Par)
+  function handleWatchAd(index) {
+    const targetBtn = document.getElementById(`task-btn-${index}`);
+    targetBtn.disabled = true;
+    targetBtn.innerText = "Ad Loading...";
+
+    if (typeof show_11723018 === "function") {
+      show_11723018()
+        .then(() => {
+          buttonStates[index] = (buttonStates[index] || 0) + 1;
+          totalDiamonds += 10;
+
+          document.getElementById("diamond-counter").innerText = totalDiamonds;
+          buildButtons();
+
+          // Save progress & ensure lastDate is saved
+          userDatabaseRef.update({
+            name: currentUserName,
+            diamonds: totalDiamonds,
+            tasks: buttonStates,
+            lastDate: getTodayString()
+          });
+
+          alert("🎉 Mubarak ho! 10 Diamonds add ho gaye.");
+        })
+        .catch((err) => {
+          console.error("Ad Error / Skipped:", err);
+          alert("Ad load nahi ho paya ya cancel ho gaya. Dobara koshish karein.");
+          buildButtons();
+        });
+    } else {
+      alert("Monetag Ad SDK connect ho raha hai. Kuch der baad click karein.");
+      buildButtons();
+    }
+  }
+
+  function showWallet() { document.getElementById("wallet-popup").style.display = "flex"; }
+  function hideWallet() { document.getElementById("wallet-popup").style.display = "none"; }
+
+  function submitRedeemRequest(requiredDiamonds, inrAmount) {
+    if (totalDiamonds < requiredDiamonds) {
+      alert("Aapke paas paryapt diamonds nahi hain!");
+      return;
     }
 
-    // 5. Video Player Timeline Listener (8-10s Double Ad & 55-60s Ad)
-    mainVideoPlayer.addEventListener("timeupdate", () => {
-      const currentTime = mainVideoPlayer.currentTime;
+    totalDiamonds -= requiredDiamonds;
+    document.getElementById("diamond-counter").innerText = totalDiamonds;
 
-      // --- Interval 1: 8 से 10 सेकंड पर 2 लगातार Ads ---
-      if (currentTime >= 9 && !midRollTriggered8Sec) {
-        midRollTriggered8Sec = true;
-        mainVideoPlayer.pause();
+    userDatabaseRef.update({ diamonds: totalDiamonds });
 
-        // Pehla Mid-Roll Ad
-        runMonetagAd(() => {
-          // Uske turant baad Doosra Ad (Back-to-Back)
-          runMonetagAd(() => {
-            mainVideoPlayer.play(); // Dono ad khatam hone par video wahi se resume
-          });
-        });
-      }
-
-      // --- Interval 2: 55 से 60 सेकंड पर अगला Ad ---
-      if (currentTime >= 55 && !midRollTriggered55Sec) {
-        midRollTriggered55Sec = true;
-        mainVideoPlayer.pause();
-
-        // Late Mid-Roll Ad
-        runMonetagAd(() => {
-          mainVideoPlayer.play(); // Ad khatam hone par video resume
-        });
-      }
+    requestDatabaseRef.set({
+      userId: currentUserId,
+      userName: currentUserName,
+      amount: inrAmount,
+      diamondsUsed: requiredDiamonds,
+      status: "pending",
+      code: "",
+      submittedAt: new Date().toLocaleString()
     });
 
-    // 6. Generic Ad Helper Function
-    function runMonetagAd(onComplete) {
-      if (typeof show_11702025 === "function") {
-        show_11702025()
-          .then(() => {
-            if (onComplete) onComplete();
-          })
-          .catch((err) => {
-            console.warn("Ad skip/error:", err);
-            if (onComplete) onComplete();
-          });
-      } else {
-        if (onComplete) onComplete();
-      }
-    }
-
-    // Close Player Modal
-    closePlayerBtn.addEventListener("click", () => {
-      mainVideoPlayer.pause();
-      mainVideoPlayer.src = "";
-      midRollTriggered8Sec = false;
-      midRollTriggered55Sec = false;
-      playerModal.classList.remove("active");
-    });
-  </script>
+    alert("Request submit ho gayi! 24 ghante ke andar code mil jayega.");
+  }
+</script>
 </body>
 </html>
