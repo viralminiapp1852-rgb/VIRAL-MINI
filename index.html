@@ -8,8 +8,8 @@
   <!-- Telegram Web App SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-  <!-- AdsGram TMA SDK -->
-  <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+  <!-- Monetag TMA SDK -->
+  <script src="//libtl.com/sdk.js" data-zone="11702025" data-sdk="show_11702025"></script>
 
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -192,7 +192,7 @@
 <body>
 
   <header>
-    <h1>🔥 Trending Videos</h1>
+    <h1>🔥 Viral Videos Hub</h1>
     <p>Watch latest viral videos instantly</p>
   </header>
 
@@ -228,26 +228,24 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // 3. AdsGram Setup (Block ID: 47730)
-    const ADSGRAM_BLOCK_ID = "47730";
-    let AdController = null;
+    const feedContainer = document.getElementById("videoFeedContainer");
+    const playerModal = document.getElementById("playerModal");
+    const mainVideoPlayer = document.getElementById("mainVideoPlayer");
+    const closePlayerBtn = document.getElementById("closePlayerBtn");
 
-    try {
-      if (window.Adsgram) {
-        AdController = window.Adsgram.init({ blockId: ADSGRAM_BLOCK_ID });
-      }
-    } catch(e) {
-      console.warn("Adsgram init error:", e);
-    }
+    // Ad Triggers Tracking Flags
+    let midRollTriggered8Sec = false;  // 8-10 sec double ad track
+    let midRollTriggered55Sec = false; // 55-60 sec ad track
 
-    function runAdsgramAd(onComplete) {
-      if (AdController) {
-        AdController.show()
+    // 3. Monetag Helper Function
+    function runMonetagAd(onComplete) {
+      if (typeof show_11702025 === "function") {
+        show_11702025()
           .then(() => {
             if (onComplete) onComplete();
           })
           .catch((err) => {
-            console.warn("Ad skipped or failed:", err);
+            console.warn("Monetag skip/error:", err);
             if (onComplete) onComplete();
           });
       } else {
@@ -255,22 +253,13 @@
       }
     }
 
-    const feedContainer = document.getElementById("videoFeedContainer");
-    const playerModal = document.getElementById("playerModal");
-    const mainVideoPlayer = document.getElementById("mainVideoPlayer");
-    const closePlayerBtn = document.getElementById("closePlayerBtn");
-
-    // Ad Triggers Tracking Flags
-    let midRollTriggered8Sec = false;  // 8-10 sec ad track
-    let midRollTriggered55Sec = false; // 55-60 sec ad track
-
     // 4. Live Video Feed from Firebase
     db.ref("videos").on("value", (snapshot) => {
       const data = snapshot.val();
       feedContainer.innerHTML = "";
 
       if (!data) {
-        feedContainer.innerHTML = `<div class="loading-state">Abhi koi video uplode nahi hai.<br>Firebase Console se video add karein.</div>`;
+        feedContainer.innerHTML = `<div class="loading-state">Abhi koi video upload nahi hai.<br>Admin panel se video add karein.</div>`;
         return;
       }
 
@@ -302,7 +291,7 @@
       midRollTriggered8Sec = false;
       midRollTriggered55Sec = false;
       
-      runAdsgramAd(() => {
+      runMonetagAd(() => {
         playMainVideo(videoUrl);
       });
     }
@@ -313,34 +302,36 @@
       mainVideoPlayer.play();
     }
 
-    // 6. Video Player Timeline Listener (8-10s & 55-60s Mid-Rolls)
+    // 6. Mid-Roll & Intervals Tracking
     mainVideoPlayer.addEventListener("timeupdate", () => {
       const currentTime = mainVideoPlayer.currentTime;
 
-      // Interval 1: 8 से 10 सेकंड पर Ad
+      // 8-10 सेकंड पर 2 लगातार Ads (Double Monetization)
       if (currentTime >= 9 && !midRollTriggered8Sec) {
         midRollTriggered8Sec = true;
         mainVideoPlayer.pause();
 
-        runAdsgramAd(() => {
-          mainVideoPlayer.play();
+        runMonetagAd(() => {
+          runMonetagAd(() => {
+            mainVideoPlayer.play();
+          });
         });
       }
 
-      // Interval 2: 55 से 60 सेकंड पर Ad
+      // 55-60 सेकंड पर Ad
       if (currentTime >= 55 && !midRollTriggered55Sec) {
         midRollTriggered55Sec = true;
         mainVideoPlayer.pause();
 
-        runAdsgramAd(() => {
+        runMonetagAd(() => {
           mainVideoPlayer.play();
         });
       }
     });
 
-    // 7. Post-roll Ad (Video End hone par)
+    // 7. Post-Roll Ad (Video Khatam hone par)
     mainVideoPlayer.addEventListener("ended", () => {
-      runAdsgramAd(() => {
+      runMonetagAd(() => {
         playerModal.classList.remove("active");
         mainVideoPlayer.src = "";
       });
