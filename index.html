@@ -286,16 +286,14 @@
       });
     });
 
-    // 5. Pre-roll Ad + View Count Increment (+1)
+    // 5. Pre-roll Ad + Atomic View Counter (+1)
     function startVideoWithPreRoll(videoId, videoUrl) {
       midRollTriggered8Sec = false;
       midRollTriggered55Sec = false;
 
-      // Firebase me is video ke views +1 karein
+      // Firebase Direct Server Increment
       if (videoId) {
-        db.ref("videos/" + videoId + "/views").transaction((currentViews) => {
-          return (currentViews || 0) + 1;
-        });
+        db.ref("videos/" + videoId + "/views").set(firebase.database.ServerValue.increment(1));
       }
 
       runMonetagAd(() => {
@@ -313,7 +311,7 @@
     mainVideoPlayer.addEventListener("timeupdate", () => {
       const currentTime = mainVideoPlayer.currentTime;
 
-      // 8-10 सेकंड पर 2 लगातार Ads (Double Monetization)
+      // 8-10 सेकंड पर 2 लगातार Ads
       if (currentTime >= 9 && !midRollTriggered8Sec) {
         midRollTriggered8Sec = true;
         mainVideoPlayer.pause();
@@ -325,7 +323,7 @@
         });
       }
 
-      // 55-60 सेकंड पर Ad
+      // 55-60 सेकंड पर Mid-roll Ad
       if (currentTime >= 55 && !midRollTriggered55Sec) {
         midRollTriggered55Sec = true;
         mainVideoPlayer.pause();
@@ -336,7 +334,7 @@
       }
     });
 
-    // 7. Post-Roll Ad (Video Khatam hone par)
+    // 7. Post-Roll Ad
     mainVideoPlayer.addEventListener("ended", () => {
       runMonetagAd(() => {
         playerModal.classList.remove("active");
