@@ -192,7 +192,7 @@
 <body>
 
   <header>
-    <h1>🔥 Viral Videos Hub</h1>
+    <h1>🔥 Trending Videos</h1>
     <p>Watch latest viral videos instantly</p>
   </header>
 
@@ -234,8 +234,8 @@
     const closePlayerBtn = document.getElementById("closePlayerBtn");
 
     // Ad Triggers Tracking Flags
-    let midRollTriggered8Sec = false;  // 8-10 sec double ad track
-    let midRollTriggered55Sec = false; // 55-60 sec ad track
+    let midRollTriggered8Sec = false;  // 8-10 sec double ad
+    let midRollTriggered55Sec = false; // 55-60 sec ad
 
     // 3. Monetag Helper Function
     function runMonetagAd(onComplete) {
@@ -269,7 +269,7 @@
         const card = document.createElement("div");
         card.className = "video-card";
         card.innerHTML = `
-          <div class="thumbnail-wrapper" onclick="startVideoWithPreRoll('${video.videoUrl}')">
+          <div class="thumbnail-wrapper" onclick="startVideoWithPreRoll('${key}', '${video.videoUrl}')">
             <img src="${video.thumbnailUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500'}" alt="${video.title}" loading="lazy" />
             <div class="play-overlay-icon">
               <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -277,7 +277,7 @@
           </div>
           <div class="video-details">
             <h2 class="video-title">${video.title}</h2>
-            <button class="play-action-btn" onclick="startVideoWithPreRoll('${video.videoUrl}')">
+            <button class="play-action-btn" onclick="startVideoWithPreRoll('${key}', '${video.videoUrl}')">
               <span>▶ Play Video</span>
             </button>
           </div>
@@ -286,11 +286,18 @@
       });
     });
 
-    // 5. Pre-roll Ad (Video start hone se pehle)
-    function startVideoWithPreRoll(videoUrl) {
+    // 5. Pre-roll Ad + View Count Increment (+1)
+    function startVideoWithPreRoll(videoId, videoUrl) {
       midRollTriggered8Sec = false;
       midRollTriggered55Sec = false;
-      
+
+      // Firebase me is video ke views +1 karein
+      if (videoId) {
+        db.ref("videos/" + videoId + "/views").transaction((currentViews) => {
+          return (currentViews || 0) + 1;
+        });
+      }
+
       runMonetagAd(() => {
         playMainVideo(videoUrl);
       });
@@ -302,7 +309,7 @@
       mainVideoPlayer.play();
     }
 
-    // 6. Mid-Roll & Intervals Tracking
+    // 6. Mid-Roll Timeline Listener
     mainVideoPlayer.addEventListener("timeupdate", () => {
       const currentTime = mainVideoPlayer.currentTime;
 
