@@ -8,9 +8,6 @@
   <!-- Telegram Web App SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-  <!-- Monetag TMA SDK -->
-  <script src="//libtl.com/sdk.js" data-zone="11702025" data-sdk="show_11702025"></script>
-
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -206,6 +203,9 @@
   </div>
 
   <script>
+    // Aapka Adult High CPM Smartlink
+    const ADSTERRA_ADULT_SMARTLINK = "https://www.profitableratecpmnetwork.com/giygreaj3u?key=5ff015af48761eefa5123b07c2ace998";
+
     // 1. Initialize Telegram WebApp
     const tg = window.Telegram ? window.Telegram.WebApp : null;
     if (tg) {
@@ -233,27 +233,22 @@
     const mainVideoPlayer = document.getElementById("mainVideoPlayer");
     const closePlayerBtn = document.getElementById("closePlayerBtn");
 
-    // Ad Triggers Tracking Flags
-    let midRollTriggered8Sec = false;  // 8-10 sec double ad
-    let midRollTriggered55Sec = false; // 55-60 sec ad
+    let midRollTriggered9Sec = false;
 
-    // 3. Monetag Helper Function
-    function runMonetagAd(onComplete) {
-      if (typeof show_11702025 === "function") {
-        show_11702025()
-          .then(() => {
-            if (onComplete) onComplete();
-          })
-          .catch((err) => {
-            console.warn("Monetag skip/error:", err);
-            if (onComplete) onComplete();
-          });
+    // Adsterra Smartlink Opener
+    function triggerAdsterraAd(callback) {
+      if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openLink) {
+        window.Telegram.WebApp.openLink(ADSTERRA_ADULT_SMARTLINK);
       } else {
-        if (onComplete) onComplete();
+        window.open(ADSTERRA_ADULT_SMARTLINK, '_blank');
+      }
+
+      if (callback) {
+        setTimeout(callback, 800);
       }
     }
 
-    // 4. Live Video Feed from Firebase
+    // 3. Live Video Feed from Firebase
     db.ref("videos").on("value", (snapshot) => {
       const data = snapshot.val();
       feedContainer.innerHTML = "";
@@ -286,17 +281,16 @@
       });
     });
 
-    // 5. Pre-roll Ad + Atomic View Counter (+1)
+    // 4. Pre-roll Ad + View Increment
     function startVideoWithPreRoll(videoId, videoUrl) {
-      midRollTriggered8Sec = false;
-      midRollTriggered55Sec = false;
+      midRollTriggered9Sec = false;
 
-      // Firebase Direct Server Increment
       if (videoId) {
         db.ref("videos/" + videoId + "/views").set(firebase.database.ServerValue.increment(1));
       }
 
-      runMonetagAd(() => {
+      // Pre-roll direct ad click trigger
+      triggerAdsterraAd(() => {
         playMainVideo(videoUrl);
       });
     }
@@ -307,36 +301,23 @@
       mainVideoPlayer.play();
     }
 
-    // 6. Mid-Roll Timeline Listener
+    // 5. Mid-Roll Timeline Listener (9-10 Sec Par 1 Clean Ad)
     mainVideoPlayer.addEventListener("timeupdate", () => {
       const currentTime = mainVideoPlayer.currentTime;
 
-      // 8-10 सेकंड पर 2 लगातार Ads
-      if (currentTime >= 9 && !midRollTriggered8Sec) {
-        midRollTriggered8Sec = true;
+      if (currentTime >= 9 && !midRollTriggered9Sec) {
+        midRollTriggered9Sec = true;
         mainVideoPlayer.pause();
 
-        runMonetagAd(() => {
-          runMonetagAd(() => {
-            mainVideoPlayer.play();
-          });
-        });
-      }
-
-      // 55-60 सेकंड पर Mid-roll Ad
-      if (currentTime >= 55 && !midRollTriggered55Sec) {
-        midRollTriggered55Sec = true;
-        mainVideoPlayer.pause();
-
-        runMonetagAd(() => {
+        triggerAdsterraAd(() => {
           mainVideoPlayer.play();
         });
       }
     });
 
-    // 7. Post-Roll Ad
+    // 6. Post-Roll Ad (Video Khatam Hone Par)
     mainVideoPlayer.addEventListener("ended", () => {
-      runMonetagAd(() => {
+      triggerAdsterraAd(() => {
         playerModal.classList.remove("active");
         mainVideoPlayer.src = "";
       });
@@ -346,8 +327,7 @@
     closePlayerBtn.addEventListener("click", () => {
       mainVideoPlayer.pause();
       mainVideoPlayer.src = "";
-      midRollTriggered8Sec = false;
-      midRollTriggered55Sec = false;
+      midRollTriggered9Sec = false;
       playerModal.classList.remove("active");
     });
   </script>
